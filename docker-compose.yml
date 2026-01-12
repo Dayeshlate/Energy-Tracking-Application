@@ -1,0 +1,66 @@
+version: "3.9"
+
+services:
+  mysql-spring:
+    image: mysql:latest
+    container_name: mysql-energy
+    restart: always
+    networks:
+      - spring-net
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_PASSWORD: root
+      MYSQL_DATABASE: energytrack
+    volumes:
+      - energy_volume:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 10s
+      retries: 5
+      start_period: 60s
+      timeout: 5s
+
+  my-project-container:
+    build:
+      context: ./my-project
+    container_name: my-project-c
+    networks:
+      - spring-net
+    ports:
+      - "5174:5173"
+
+  reactjs-container:
+    build:
+      context: ./reactjs
+    container_name: reactjs-c
+    networks:
+      - spring-net
+    ports:
+      - "5173:5173"
+
+  spring-container:
+    build:
+      context: ./energy_tracking_backend
+    container_name: energyapp
+    restart: always
+    networks:
+      - spring-net
+    depends_on:
+      mysql-spring:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql-spring:3306/energytrack
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+
+volumes:
+  energy_volume:
+
+networks:
+  spring-net:
+
